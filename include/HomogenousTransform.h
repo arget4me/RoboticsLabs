@@ -389,7 +389,7 @@ namespace ROBOTICS_LAB
 
         {//RPY from Transform
             bool passed_transform_to_rpy = true;
-            Vec4 XYZ = {3.1415f/2.0f, 3.1415f/2.0f, 3.1415f/4.0f, 1};
+            Vec4 XYZ = {3.1415f/2.0f, 3.1415f/3.0f, 3.1415f/4.0f, 1};
             transform = get_transform_from_eulerZYX(XYZ.to_vec3);
             
 
