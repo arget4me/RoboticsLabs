@@ -45,6 +45,8 @@ namespace ROBOTICS_LAB
 
     inline HomogenousTransform get_transform_from_eulerZYX(const Vec3& xyz_input);
 
+    inline HomogenousTransform get_transform_from_angle_axis(const Vec3& axis, const float angle);
+
     void get_RPY(HomogenousTransform&, Vec3* rpy_out, float sqrt_select = 1);
 
     HomogenousTransform get_inverse(HomogenousTransform& transform);
@@ -87,6 +89,18 @@ namespace ROBOTICS_LAB
             cos(Z) * sin(X) * sin(Y) - cos(X) * sin(Z), cos(X) * cos(Z) + sin(X) * sin(Y) * sin(Z), cos(Y) * sin(X), 0, //col 1
             sin(X) * sin(Z) + cos(X) * cos(Z) * sin(Y), cos(X) * sin(Y) * sin(Z) - cos(Z) * sin(X), cos(X) * cos(Y), 0, //col 2
             0, 0, 0, 1, //col 3
+        };
+    }
+
+
+    inline ROBOTICS_LAB::HomogenousTransform ROBOTICS_LAB::get_transform_from_angle_axis(const Vec3& axis, const float angle)
+    {
+        //@TODO: Add angle-axis to transform here!
+        return {
+            0, 0, 0, 0, //col 0
+            0, 0, 0, 0, //col 1
+            0, 0, 0, 0, //col 2
+            0, 0, 0, 0, //col 3
         };
     }
 
@@ -389,8 +403,10 @@ namespace ROBOTICS_LAB
 
         {//RPY from Transform
             bool passed_transform_to_rpy = true;
-            Vec4 XYZ = {3.1415f/2.0f, 3.1415f/3.0f, 3.1415f/4.0f, 1};
+            Vec4 XYZ = {3.1415f/1.0f, 3.1415f/4.0f, 3.1415f/2.0f, 1};
             transform = get_transform_from_eulerZYX(XYZ.to_vec3);
+            //std::cout << "Euler XYZ angles: (transform from eulerZYX)\n";
+            //print_vector(XYZ);
             
 
             int strikes = 0;
@@ -399,6 +415,8 @@ namespace ROBOTICS_LAB
             {
                 Vec4 RPY = {0, 0, 0, 1};
                 get_RPY(transform, &RPY.to_vec3, options[k]);
+                //std::cout << "RPY angles:\n";
+                //print_vector(RPY);
                 for(int i = 0; i < 3; i++)
                 {
                     float value_left = XYZ.data[i];
