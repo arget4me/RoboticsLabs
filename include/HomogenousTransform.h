@@ -128,7 +128,22 @@ namespace ROBOTICS_LAB
         }
         else if(fabs(theta) - PI <= 1e-6)
         {
-                
+            bool sign_xy = (transform.column[1].data[0] < 0.0f);
+            bool sign_xz = (transform.column[2].data[0] < 0.0f);
+            bool sign_yz = (transform.column[2].data[1] < 0.0f);
+           - 
+            Vec3 axis = {
+                sqrt((transform.column[0].data[0] + 1.0f) / 2.0f),
+                sqrt((transform.column[1].data[1] + 1.0f) / 2.0f),
+                sqrt((transform.column[2].data[2] + 1.0f) / 2.0f),
+            };
+
+            axis.y = -1 * axis.y * (sign_xy || !sign_xz && sign_yz) + axis.y * !(sign_xy || !sign_xz && sign_yz);
+            axis.z = -1 * axis.z * (sign_xz || !sign_xy && sign_yz) + axis.z * !(sign_xz || !sign_xy && sign_yz);
+
+            *axis_out = axis;
+            *angle_out = theta;
+
         }
         else
         {
