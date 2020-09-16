@@ -1,7 +1,12 @@
 #ifndef HOMOGENOUS_TRANSFORM_HEADER
 #define HOMOGENOUS_TRANSFORM_HEADER
+
+#define PI 3.141593f
+
 namespace ROBOTICS_LAB
 {
+
+
     typedef struct
     {
         union
@@ -46,6 +51,8 @@ namespace ROBOTICS_LAB
     inline HomogenousTransform get_transform_from_eulerZYX(const Vec3& xyz_input);
 
     inline HomogenousTransform get_transform_from_angle_axis(const Vec3& axis, const float angle);
+
+    void get_angle_axis_from_transform(Vec3* axis_out, float* angle_out, const HomogenousTransform& transform);
 
     void get_RPY(HomogenousTransform&, Vec3* rpy_out, float sqrt_select = 1);
 
@@ -95,13 +102,44 @@ namespace ROBOTICS_LAB
 
     inline ROBOTICS_LAB::HomogenousTransform ROBOTICS_LAB::get_transform_from_angle_axis(const Vec3& axis, const float angle)
     {
-        //@TODO: Add angle-axis to transform here!
         return {
-            0, 0, 0, 0, //col 0
-            0, 0, 0, 0, //col 1
-            0, 0, 0, 0, //col 2
-            0, 0, 0, 0, //col 3
+            axis.x*axis.x * (1 - cos(angle)) + cos(angle), axis.x * axis.y * (1 - cos(angle)) + axis.z * sin(angle), axis.x * axis.z * (1 - cos(angle)) - axis.y * sin(angle), 0, //col 0
+            axis.x * axis.y * (1 - cos(angle)) - axis.z * sin(angle), axis.y * axis.y * (1 - cos(angle)) + cos(angle), axis.y * axis.z * (1 - cos(angle)) + axis.x * sin(angle), 0, //col 1
+            axis.x * axis.z * (1 - cos(angle)) + axis.y * sin(angle), axis.y * axis.z * (1 - cos(angle)) - axis.x * sin(angle), axis.z * axis.z * (1 - cos(angle)) + cos(angle), 0, //col 2
+            0, 0, 0, 1, //col 3
         };
+    }
+
+
+    void get_angle_axis_from_transform(Vec3* axis_out, float* angle_out, const HomogenousTransform& transform)
+    {
+        const float r01 = transform.column[0].data[1] - transform.column[1].data[0];
+        const float r02 = transform.column[2].data[0] - transform.column[0].data[2];
+        const float r12 = transform.column[2].data[1] - transform.column[1].data[2];
+        float sin_theta = sqrt(r01*r01 + r02*r02 + r12*r12);
+        float cos_theta = transform.column[0].data[0] + transform.column[1].data[1] + transform.column[2].data[2] - 1;
+        
+        float theta = atan2(sin_theta, cos_theta);
+
+        if(fabs(theta) <= 1e-6)
+        {
+            *angle_out = 0.0f;
+            //axis is Undefined
+        }
+        else if(fabs(theta) - PI <= 1e-6)
+        {
+                
+        }
+        else
+        {
+            *axis_out = {
+                0.5f * sin_theta * -r12,
+                0.5f * sin_theta * r02,
+                0.5f * sin_theta * r01,
+            };
+            *angle_out = theta;
+        }
+        
     }
 
     void ROBOTICS_LAB::get_RPY(ROBOTICS_LAB::HomogenousTransform& transform, Vec3* rpy_out, float sqrt_select)
@@ -110,12 +148,12 @@ namespace ROBOTICS_LAB
 
         float cos2_theta = transform.column[1].data[2]*transform.column[1].data[2] + transform.column[2].data[2]*transform.column[2].data[2];
         float cos_theta = sqrt_select * sqrt(cos2_theta);
-        if(cos_theta != 0)
+        if(fabs(cos_theta) >= 1e-6)
         {
             float sin_theta = -transform.column[0].data[2];
             float theta = atan2(sin_theta, cos_theta);
             cos_theta = cos(theta);
-            if(cos_theta != 0)
+            if(fabs(cos_theta) >= 1e-6)
             {
                 float sin_psi = transform.column[1].data[2] / cos_theta;
                 float cos_psi = transform.column[2].data[2] / cos_theta;
@@ -374,7 +412,7 @@ namespace ROBOTICS_LAB
                     break;
                 }
             }
-            Vec4 XYZ = {3.1415/2, 3.1415/2, 3.1415/2, 1};
+            Vec4 XYZ = {PI/2, PI/2, PI/2, 1};
             transform = get_transform_from_eulerZYX(XYZ.to_vec3);
             Eigen::Matrix3f check_transform;
             check_transform = Eigen::AngleAxisf(XYZ.z, Eigen::Vector3f::UnitZ())
@@ -403,7 +441,7 @@ namespace ROBOTICS_LAB
 
         {//RPY from Transform
             bool passed_transform_to_rpy = true;
-            Vec4 XYZ = {3.1415f/1.0f, 3.1415f/4.0f, 3.1415f/2.0f, 1};
+            Vec4 XYZ = {PI/1.0f, PI/4.0f, PI/2.0f, 1};
             transform = get_transform_from_eulerZYX(XYZ.to_vec3);
             //std::cout << "Euler XYZ angles: (transform from eulerZYX)\n";
             //print_vector(XYZ);
