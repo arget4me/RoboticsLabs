@@ -111,7 +111,7 @@ namespace ROBOTICS_LAB
     }
 
 
-    void get_angle_axis_from_transform(Vec3* axis_out, float* angle_out, const HomogenousTransform& transform)
+    void ROBOTICS_LAB::get_angle_axis_from_transform(Vec3* axis_out, float* angle_out, const HomogenousTransform& transform)
     {
         const float r01 = transform.column[0].data[1] - transform.column[1].data[0];
         const float r02 = transform.column[2].data[0] - transform.column[0].data[2];
@@ -119,21 +119,22 @@ namespace ROBOTICS_LAB
         float sin_theta = sqrt(r01*r01 + r02*r02 + r12*r12);
         float cos_theta = transform.column[0].data[0] + transform.column[1].data[1] + transform.column[2].data[2] - 1;
         
-        float theta = atan2(sin_theta, cos_theta);
+        float theta = atan2(sin_theta, cos_theta);//@Note: sin_theta and cos_theta includes factor 0.5f but this is factored out in tan = sin/cos
 
         if(fabs(theta) <= 1e-6)
         {
+            std::cout << "Singular case, Undefined axis.\n";
             *angle_out = 0.0f;
             //axis is Undefined
         }
-        else if(fabs(theta) - PI <= 1e-6)
+        else if(fabs(fabs(theta) - PI) <= 1e-6)
         {
-            bool sign_xy = (transform.column[1].data[0] < 0.0f);
-            bool sign_xz = (transform.column[2].data[0] < 0.0f);
-            bool sign_yz = (transform.column[2].data[1] < 0.0f);
-           - 
-            Vec3 axis = {
-                sqrt((transform.column[0].data[0] + 1.0f) / 2.0f),
+
+            std::cout << "Singular case, theta = +-pi " << theta <<  "\n" ;
+            bool sign_xy = (fabs(transform.column[1].data[0]) > 1e-6 && fabs(transform.column[1].data[0]) < 0.0f) == true;
+            bool sign_xz = (fabs(transform.column[2].data[0]) > 1e-6 && fabs(transform.column[2].data[0]) < 0.0f) == true;
+            bool sign_yz = (fabs(transform.column[2].data[1]) > 1e-6 && fabs(transform.column[2].data[1]) < 0.0f) == true;
+            Vec3 axis = { sqrt((transform.column[0].data[0] + 1.0f) / 2.0f),
                 sqrt((transform.column[1].data[1] + 1.0f) / 2.0f),
                 sqrt((transform.column[2].data[2] + 1.0f) / 2.0f),
             };
@@ -141,17 +142,28 @@ namespace ROBOTICS_LAB
             axis.y = -1 * axis.y * (sign_xy || !sign_xz && sign_yz) + axis.y * !(sign_xy || !sign_xz && sign_yz);
             axis.z = -1 * axis.z * (sign_xz || !sign_xy && sign_yz) + axis.z * !(sign_xz || !sign_xy && sign_yz);
 
+            float length = sqrt(axis.x*axis.x + axis.y*axis.y + axis.z*axis.z);
+            axis.x /= length;
+            axis.y /= length;
+            axis.z /= length;
+
             *axis_out = axis;
             *angle_out = theta;
 
         }
         else
         {
-            *axis_out = {
-                0.5f * sin_theta * -r12,
-                0.5f * sin_theta * r02,
-                0.5f * sin_theta * r01,
+            Vec3 axis = {
+                0.5f * sin(theta) * -r12,
+                0.5f * sin(theta) * r02,
+                0.5f * sin(theta) * -r01
             };
+            float length = sqrt(axis.x*axis.x + axis.y*axis.y + axis.z*axis.z);
+            axis.x /= length;
+            axis.y /= length;
+            axis.z /= length;
+
+            *axis_out = axis;
             *angle_out = theta;
         }
         
@@ -183,6 +195,14 @@ namespace ROBOTICS_LAB
                 rpy_out->y = theta;
                 rpy_out->z = phi;
             }
+            else
+            {
+                std::cout << "[->]Cos(theta) = 0\n";
+            }
+        }
+        else
+        {
+            std::cout << "Cos(theta) = 0\n";
         }
     }
 
@@ -475,10 +495,14 @@ namespace ROBOTICS_LAB
                     float value_left = XYZ.data[i];
                     float value_right = RPY.data[i];
 
-                    value_left = roundf(value_left * 1e4) * 1e-4;
-                    value_right = roundf(value_right * 1e4) * 1e-4;
+                    value_left = roundf(value_left * 1e6) * 1e-6;
+                    value_right = roundf(value_right * 1e6) * 1e-6;
 
-                    if(value_left != value_right)
+                    //-PI and +PI should be reset to 0.0f if close
+                    if(fabs(fabs(value_left) - PI) <= 1e-4)value_left = 0.0f;
+                    if(fabs(fabs(value_right) - PI) <= 1e-4)value_right = 0.0f;
+
+                    if(value_left != value_right && (PI - value_left) != value_right)
                     {
                         strikes++;
                         break;
@@ -493,6 +517,37 @@ namespace ROBOTICS_LAB
             }
 
             display_test_output(passed_transform_to_rpy, "RPY from Transform");
+        }
+
+        {
+            Vec4 axis = {1, 0, 0, 0};
+            float angle = PI/8;
+            std::cout << "Angle in: " << angle << "\n";
+            print_vector(axis);
+            transform = get_transform_from_angle_axis(axis.to_vec3, angle);
+            print_homogenous_transform(transform);
+
+            axis = {0};
+            angle = 0;
+            get_angle_axis_from_transform(&axis.to_vec3, &angle, transform);
+            print_vector(axis);
+            std::cout << "Angle out: "<<angle << "\n\n";
+
+
+
+            axis = {1/sqrt(2), 1/sqrt(2), 0, 0};
+            angle = PI/5;
+            std::cout << "Angle in: " << angle << "\n";
+            print_vector(axis);
+            transform = get_transform_from_angle_axis(axis.to_vec3, angle);
+            print_homogenous_transform(transform);
+
+            axis = {0};
+            angle = 0;
+            get_angle_axis_from_transform(&axis.to_vec3, &angle, transform);
+            print_vector(axis);
+            std::cout << "Angle out: "<<angle << "\n\n";
+
         }
 
 
