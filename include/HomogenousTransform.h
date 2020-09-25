@@ -50,19 +50,23 @@ namespace ROBOTICS_LAB
 
     inline HomogenousTransform get_transform_from_eulerZYX(const Vec3& xyz_input);
 
-    inline HomogenousTransform get_transform_from_angle_axis(const Vec3& axis, const float angle);
+    inline HomogenousTransform get_transform_from_angle_axis(const Vec4& axis_angle);
 
-    void get_angle_axis_from_transform(Vec3* axis_out, float* angle_out, const HomogenousTransform& transform);
+    inline HomogenousTransform get_transform_from_quaternion(const Vec4& quaternion);
 
-    void get_RPY(HomogenousTransform&, Vec3* rpy_out, float sqrt_select = 1);
+    void get_angle_axis_from_transform(Vec4* axis_angle_out, const HomogenousTransform&  transform);
 
-    HomogenousTransform get_inverse(HomogenousTransform& transform);
+    void get_RPY(const HomogenousTransform& transform, Vec3* rpy_out, float sqrt_select = 1);
 
-    Vec4 apply_transform(HomogenousTransform& transform, Vec4& vector);
+    void get_quaternion_from_transform(Vec4* quaternion_out, const HomogenousTransform&transform);
 
-    HomogenousTransform apply_transform(HomogenousTransform& transform, HomogenousTransform& other_transform);
+    HomogenousTransform get_inverse(const HomogenousTransform&  transform);
 
-    inline void print_homogenous_transform(HomogenousTransform& transform);
+    Vec4 apply_transform(const HomogenousTransform& transform, const Vec4& vector);
+
+    HomogenousTransform apply_transform(const HomogenousTransform&  transform, const HomogenousTransform&  other_transform);
+
+    inline void print_homogenous_transform(const HomogenousTransform& transform);
 
     inline void print_vector(Vec4& vector);
 
@@ -75,6 +79,19 @@ namespace ROBOTICS_LAB
     #include <cmath>
     #include <cstdlib>
     #include <eigen3/Eigen/Dense>
+
+    bool compare_values(float value_left, float value_right, int num_decimals)
+    {
+        float decimals = 1;
+        for(int i = 0; i < num_decimals; i++)
+        {
+            decimals = decimals * 10;
+        }
+        float value_a = roundf(value_left * decimals) / decimals;
+        float value_b = roundf(value_right * decimals) / decimals;
+
+        return (value_a == value_b);
+    }
 
     inline ROBOTICS_LAB::HomogenousTransform ROBOTICS_LAB::get_identity_matrix()
     {
@@ -100,8 +117,10 @@ namespace ROBOTICS_LAB
     }
 
 
-    inline ROBOTICS_LAB::HomogenousTransform ROBOTICS_LAB::get_transform_from_angle_axis(const Vec3& axis, const float angle)
+    inline ROBOTICS_LAB::HomogenousTransform ROBOTICS_LAB::get_transform_from_angle_axis(const Vec4& axis_angle)
     {
+        const Vec3& axis = axis_angle.to_vec3;
+        const float& angle = axis_angle.w;
         return {
             axis.x*axis.x * (1 - cos(angle)) + cos(angle), axis.x * axis.y * (1 - cos(angle)) + axis.z * sin(angle), axis.x * axis.z * (1 - cos(angle)) - axis.y * sin(angle), 0, //col 0
             axis.x * axis.y * (1 - cos(angle)) - axis.z * sin(angle), axis.y * axis.y * (1 - cos(angle)) + cos(angle), axis.y * axis.z * (1 - cos(angle)) + axis.x * sin(angle), 0, //col 1
@@ -110,8 +129,22 @@ namespace ROBOTICS_LAB
         };
     }
 
+    inline ROBOTICS_LAB::HomogenousTransform ROBOTICS_LAB::get_transform_from_quaternion(const Vec4& quat)
+    {
+        const float& x = quat.x;
+        const float& y = quat.y;
+        const float& z = quat.z;
+        const float& n = quat.w;
+        
+        return {
+            2.0f * (n*n + x*x) - 1.0f, 2.0f * (x*y + n*z), 2.0f * (x*z - n*y), 0, //col 0
+            2.0f * (x*y - n*z), 2.0f * (n*n +y*y) - 1.0f, 2.0f * (y*z + n*x), 0, //col 1
+            2.0f * (x*z + n*y), 2.0f * (y*z - n*x), 2.0f * (n*n + z*z) - 1.0f, 0, //col 2
+            0, 0, 0, 1, //col 3
+        };
+    }
 
-    void ROBOTICS_LAB::get_angle_axis_from_transform(Vec3* axis_out, float* angle_out, const HomogenousTransform& transform)
+    void ROBOTICS_LAB::get_angle_axis_from_transform(Vec4* axis_angle_out, const HomogenousTransform&  transform)
     {
         const float r01 = transform.column[0].data[1] - transform.column[1].data[0];
         const float r02 = transform.column[2].data[0] - transform.column[0].data[2];
@@ -124,7 +157,7 @@ namespace ROBOTICS_LAB
         if(fabs(theta) <= 1e-6)
         {
             std::cout << "Singular case, Undefined axis.\n";
-            *angle_out = 0.0f;
+            axis_angle_out->w = 0.0f;
             //axis is Undefined
         }
         else if(fabs(fabs(theta) - PI) <= 1e-6)
@@ -134,9 +167,10 @@ namespace ROBOTICS_LAB
             bool sign_xy = (fabs(transform.column[1].data[0]) > 1e-6 && fabs(transform.column[1].data[0]) < 0.0f) == true;
             bool sign_xz = (fabs(transform.column[2].data[0]) > 1e-6 && fabs(transform.column[2].data[0]) < 0.0f) == true;
             bool sign_yz = (fabs(transform.column[2].data[1]) > 1e-6 && fabs(transform.column[2].data[1]) < 0.0f) == true;
-            Vec3 axis = { sqrt((transform.column[0].data[0] + 1.0f) / 2.0f),
+            Vec4 axis = { sqrt((transform.column[0].data[0] + 1.0f) / 2.0f),
                 sqrt((transform.column[1].data[1] + 1.0f) / 2.0f),
                 sqrt((transform.column[2].data[2] + 1.0f) / 2.0f),
+                theta
             };
 
             axis.y = -1 * axis.y * (sign_xy || !sign_xz && sign_yz) + axis.y * !(sign_xy || !sign_xz && sign_yz);
@@ -147,29 +181,28 @@ namespace ROBOTICS_LAB
             axis.y /= length;
             axis.z /= length;
 
-            *axis_out = axis;
-            *angle_out = theta;
+            *axis_angle_out = axis;
 
         }
         else
         {
-            Vec3 axis = {
+            Vec4 axis = {
                 0.5f * sin(theta) * -r12,
                 0.5f * sin(theta) * r02,
-                0.5f * sin(theta) * -r01
+                0.5f * sin(theta) * -r01,
+                theta
             };
             float length = sqrt(axis.x*axis.x + axis.y*axis.y + axis.z*axis.z);
             axis.x /= length;
             axis.y /= length;
             axis.z /= length;
 
-            *axis_out = axis;
-            *angle_out = theta;
+            *axis_angle_out = axis;
         }
         
     }
 
-    void ROBOTICS_LAB::get_RPY(ROBOTICS_LAB::HomogenousTransform& transform, Vec3* rpy_out, float sqrt_select)
+    void ROBOTICS_LAB::get_RPY(const ROBOTICS_LAB::HomogenousTransform& transform, Vec3* rpy_out, float sqrt_select)
     {
         if(sqrt_select != 1.0f)sqrt_select = -1.0f;
 
@@ -206,7 +239,21 @@ namespace ROBOTICS_LAB
         }
     }
 
-    ROBOTICS_LAB::HomogenousTransform ROBOTICS_LAB::get_inverse(HomogenousTransform& transform)
+    void ROBOTICS_LAB::get_quaternion_from_transform(Vec4* quaternion_out, const ROBOTICS_LAB::HomogenousTransform& transform)
+    {
+        Vec4 axis = {0};
+        get_angle_axis_from_transform(&axis, transform);
+
+        float sin_theta_half = sin(axis.w / 2);
+        float cos_theta_half = cos(axis.w / 2);
+
+        quaternion_out->x = axis.x * sin_theta_half;
+        quaternion_out->y = axis.y * sin_theta_half;
+        quaternion_out->z = axis.z * sin_theta_half;
+        quaternion_out->w = cos_theta_half;
+    }
+
+    ROBOTICS_LAB::HomogenousTransform ROBOTICS_LAB::get_inverse(const HomogenousTransform& transform)
     {
         HomogenousTransform inverse_transform = get_identity_matrix();
         for(int col = 0; col < 3; col++)
@@ -228,7 +275,7 @@ namespace ROBOTICS_LAB
         return inverse_transform;
     }
 
-    ROBOTICS_LAB::Vec4 ROBOTICS_LAB::apply_transform(ROBOTICS_LAB::HomogenousTransform& transform, ROBOTICS_LAB::Vec4& vector)
+    ROBOTICS_LAB::Vec4 ROBOTICS_LAB::apply_transform(const ROBOTICS_LAB::HomogenousTransform& transform, const ROBOTICS_LAB::Vec4& vector)
     {
         Vec4 result_vector = {0, 0, 0, 0};
         
@@ -243,35 +290,38 @@ namespace ROBOTICS_LAB
         return result_vector;
     }
 
-    ROBOTICS_LAB::HomogenousTransform ROBOTICS_LAB::apply_transform(ROBOTICS_LAB::HomogenousTransform& transform, ROBOTICS_LAB::HomogenousTransform& other_transform)
+    ROBOTICS_LAB::HomogenousTransform ROBOTICS_LAB::apply_transform(const ROBOTICS_LAB::HomogenousTransform& transform, const ROBOTICS_LAB::HomogenousTransform& other_transform)
     {
 
         HomogenousTransform result_transform = {0};
         for(int col = 0; col < 4; col++)
         {
             Vec4 result_column = apply_transform(transform, other_transform.column[col]);
-            for(int row = 0; row < 4; row++)
+            //for(int row = 0; row < 4; row++)
             {
-                result_transform.column[col].data[row] = result_column.data[row];
+                result_transform.column[col] = result_column;
             }
         }
 
         return result_transform;
     }
 
-    inline void ROBOTICS_LAB::print_homogenous_transform(ROBOTICS_LAB::HomogenousTransform& transform)
+    inline void ROBOTICS_LAB::print_homogenous_transform(const ROBOTICS_LAB::HomogenousTransform& transform)
     {
+        std::cout << "[ ";
         for(int row = 0; row < 4; row++)
         {
-            std::cout << "Row " << row << " = ";
             for(int col = 0; col < 4; col++)
             {
                 float value = transform.column[col].data[row];
                 value = roundf(value * 1e4) * 1e-4;
-                std::cout << value << " ";
+                if(col % 4 != 3)
+                    std::cout << value << ", ";
+                else
+                    std::cout << value << ";\n";
             }
-            std::cout << "\n";
         }
+        std::cout << "]\n";
 
     }
 
@@ -520,39 +570,80 @@ namespace ROBOTICS_LAB
         }
 
         {
-            Vec4 axis = {1, 0, 0, 0};
-            float angle = PI/8;
-            std::cout << "Angle in: " << angle << "\n";
-            print_vector(axis);
-            transform = get_transform_from_angle_axis(axis.to_vec3, angle);
-            print_homogenous_transform(transform);
-
-            axis = {0};
-            angle = 0;
-            get_angle_axis_from_transform(&axis.to_vec3, &angle, transform);
-            print_vector(axis);
-            std::cout << "Angle out: "<<angle << "\n\n";
+            bool passed_angle_axis = true;
+            {
+                Vec4 axis = {1, 0, 0, PI/8};
+                //std::cout << "Angle in: " << angle << "\n";
+                //print_vector(axis);
+                transform = get_transform_from_angle_axis(axis);
+                //print_homogenous_transform(transform);
+                
 
 
+                axis = {0};
+                get_angle_axis_from_transform(&axis, transform);
+                //print_vector(axis);
+                //std::cout << "Angle out: "<<angle << "\n\n";
+                if(!(compare_values(axis.x, 1, 4) &&
+                    compare_values(axis.y, 0, 4) &&
+                    compare_values(axis.z, 0, 4) &&
+                    compare_values(axis.w, PI/8, 4)))
+                {
+                    passed_angle_axis = false;
+                }
+            }
 
-            axis = {1/sqrt(2), 1/sqrt(2), 0, 0};
-            angle = PI/5;
-            std::cout << "Angle in: " << angle << "\n";
-            print_vector(axis);
-            transform = get_transform_from_angle_axis(axis.to_vec3, angle);
-            print_homogenous_transform(transform);
+            {
+                Vec4 axis = {1/sqrt(2), 1/sqrt(2), 0, PI/2};
+                //std::cout << "Angle in: " << angle << "\n";
+                //print_vector(axis);
+                transform = get_transform_from_angle_axis(axis);
+                //print_homogenous_transform(transform);
+                
 
-            axis = {0};
-            angle = 0;
-            get_angle_axis_from_transform(&axis.to_vec3, &angle, transform);
-            print_vector(axis);
-            std::cout << "Angle out: "<<angle << "\n\n";
 
+                axis = {0};
+                get_angle_axis_from_transform(&axis, transform);
+                //print_vector(axis);
+                //std::cout << "Angle out: "<<angle << "\n\n";
+                if(!(compare_values(axis.x, 1/sqrt(2), 4) &&
+                    compare_values(axis.y, 1/sqrt(2), 4) &&
+                    compare_values(axis.z, 0, 4) &&
+                    compare_values(axis.w, PI/2, 4)))
+                {
+                    passed_angle_axis = false;
+                }
+            }
+            display_test_output(passed_angle_axis, "Angle axis & Transform");
         }
+
+        {
+            bool passed_quaternion = true;
+            Vec4 axis = {0, 1, 0, PI / 3.0f};
+            transform = get_transform_from_angle_axis(axis);
+
+            Vec4 quaternion = {0};
+            get_quaternion_from_transform(&quaternion, transform);
+            HomogenousTransform quat_transform = get_transform_from_quaternion(quaternion);
+
+            for(int i = 0; i < 16; i++)
+            {
+                if(!compare_values(transform.data[i], quat_transform.data[i], 4))
+                {
+                    passed_quaternion = false;
+                    break;
+                }
+            }
+
+            display_test_output(passed_quaternion, "Quaternion & transform");
+        }
+
 
 
         std::cout <<"--------------------TEST STOP--------------------\n";
     }
+
+    
 
 #endif
 

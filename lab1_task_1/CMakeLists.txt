@@ -10,6 +10,8 @@ add_compile_options(-std=c++11 -g)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  tf
+  geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
