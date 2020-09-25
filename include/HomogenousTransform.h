@@ -58,6 +58,8 @@ namespace ROBOTICS_LAB
 
     void get_RPY(const HomogenousTransform& transform, Vec3* rpy_out, float sqrt_select = 1);
 
+    void get_quaternion_from_angle_axis(Vec4* quaternion_out, const Vec4& axis_angle);
+
     void get_quaternion_from_transform(Vec4* quaternion_out, const HomogenousTransform&transform);
 
     HomogenousTransform get_inverse(const HomogenousTransform&  transform);
@@ -154,13 +156,13 @@ namespace ROBOTICS_LAB
         
         float theta = atan2(sin_theta, cos_theta);//@Note: sin_theta and cos_theta includes factor 0.5f but this is factored out in tan = sin/cos
 
-        if(fabs(theta) <= 1e-6)
+        if(compare_values(fabs(theta), 0.0f, 4))
         {
             std::cout << "Singular case, Undefined axis.\n";
             axis_angle_out->w = 0.0f;
             //axis is Undefined
         }
-        else if(compare_values(fabs(fabs(theta) - PI), 0, 4))
+        else if(compare_values(fabs(fabs(theta) - PI), 0.0f, 4))
         {
 
             std::cout << "Singular case, theta = +-pi " << theta <<  "\n" ;
@@ -252,12 +254,32 @@ namespace ROBOTICS_LAB
         }
     }
 
+    void ROBOTICS_LAB::get_quaternion_from_angle_axis(Vec4* quaternion_out, const Vec4& axis_angle)
+    {
+        Vec4 axis = axis_angle;
+        float length = sqrt(axis.x*axis.x + axis.y*axis.y + axis.z*axis.z);
+        if(!compare_values(length, 0.0f, 4))
+        {
+            axis.x /= length;
+            axis.y /= length;
+            axis.z /= length;
+        }
+
+        float sin_theta_half = sin(axis.w / 2);
+        float cos_theta_half = cos(axis.w / 2);
+
+        quaternion_out->x = axis.x * sin_theta_half;
+        quaternion_out->y = axis.y * sin_theta_half;
+        quaternion_out->z = axis.z * sin_theta_half;
+        quaternion_out->w = cos_theta_half;
+    }
+
     void ROBOTICS_LAB::get_quaternion_from_transform(Vec4* quaternion_out, const ROBOTICS_LAB::HomogenousTransform& transform)
     {
         Vec4 axis = {0};
         get_angle_axis_from_transform(&axis, transform);
-        std::cout << "Quat from axis-angle:\n";
-        print_vector(axis);
+        //std::cout << "Quat from axis-angle:\n";
+        //print_vector(axis);
 
         float sin_theta_half = sin(axis.w / 2);
         float cos_theta_half = cos(axis.w / 2);
