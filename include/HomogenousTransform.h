@@ -146,10 +146,10 @@ namespace ROBOTICS_LAB
 
     void ROBOTICS_LAB::get_angle_axis_from_transform(Vec4* axis_angle_out, const HomogenousTransform&  transform)
     {
-        const float r01 = transform.column[0].data[1] - transform.column[1].data[0];
-        const float r02 = transform.column[2].data[0] - transform.column[0].data[2];
-        const float r12 = transform.column[2].data[1] - transform.column[1].data[2];
-        float sin_theta = sqrt(r01*r01 + r02*r02 + r12*r12);
+        const float rz = transform.column[0].data[1] - transform.column[1].data[0];
+        const float ry = transform.column[2].data[0] - transform.column[0].data[2];
+        const float rx = transform.column[1].data[2] - transform.column[2].data[1];
+        float sin_theta = sqrt(rx*rx + ry*ry + rz*rz);
         float cos_theta = transform.column[0].data[0] + transform.column[1].data[1] + transform.column[2].data[2] - 1;
         
         float theta = atan2(sin_theta, cos_theta);//@Note: sin_theta and cos_theta includes factor 0.5f but this is factored out in tan = sin/cos
@@ -160,21 +160,34 @@ namespace ROBOTICS_LAB
             axis_angle_out->w = 0.0f;
             //axis is Undefined
         }
-        else if(fabs(fabs(theta) - PI) <= 1e-6)
+        else if(compare_values(fabs(fabs(theta) - PI), 0, 4))
         {
 
             std::cout << "Singular case, theta = +-pi " << theta <<  "\n" ;
-            bool sign_xy = (fabs(transform.column[1].data[0]) > 1e-6 && fabs(transform.column[1].data[0]) < 0.0f) == true;
-            bool sign_xz = (fabs(transform.column[2].data[0]) > 1e-6 && fabs(transform.column[2].data[0]) < 0.0f) == true;
-            bool sign_yz = (fabs(transform.column[2].data[1]) > 1e-6 && fabs(transform.column[2].data[1]) < 0.0f) == true;
-            Vec4 axis = { sqrt((transform.column[0].data[0] + 1.0f) / 2.0f),
+            constexpr bool NEGATIVE = true;
+            bool sign_xy = (transform.column[1].data[0] < 0.0f) == NEGATIVE;
+
+            bool sign_xz = (transform.column[2].data[0] < 0.0f) == NEGATIVE;
+
+            bool sign_yz = (transform.column[2].data[1] < 0.0f) == NEGATIVE;
+
+
+            Vec4 axis = { 
+                sqrt((transform.column[0].data[0] + 1.0f) / 2.0f),
                 sqrt((transform.column[1].data[1] + 1.0f) / 2.0f),
                 sqrt((transform.column[2].data[2] + 1.0f) / 2.0f),
                 theta
             };
 
-            axis.y = -1 * axis.y * (sign_xy || !sign_xz && sign_yz) + axis.y * !(sign_xy || !sign_xz && sign_yz);
-            axis.z = -1 * axis.z * (sign_xz || !sign_xy && sign_yz) + axis.z * !(sign_xz || !sign_xy && sign_yz);
+            // Resolve signs ambiguities: axis.y == -axis.y || +axis.y
+            axis.y = 
+            - axis.y *  (sign_xy || !sign_xz && sign_yz) 
+            + axis.y * !(sign_xy || !sign_xz && sign_yz); 
+
+            // Resolve signs ambiguities: axis.z == -axis.z || +axis.z
+            axis.z = 
+            - axis.z *  (sign_xz || !sign_xy && sign_yz) 
+            + axis.z * !(sign_xz || !sign_xy && sign_yz);
 
             float length = sqrt(axis.x*axis.x + axis.y*axis.y + axis.z*axis.z);
             axis.x /= length;
@@ -187,9 +200,9 @@ namespace ROBOTICS_LAB
         else
         {
             Vec4 axis = {
-                0.5f * sin(theta) * -r12,
-                0.5f * sin(theta) * r02,
-                0.5f * sin(theta) * -r01,
+                0.5f * sin(theta) * rx,
+                0.5f * sin(theta) * ry,
+                0.5f * sin(theta) * rz,
                 theta
             };
             float length = sqrt(axis.x*axis.x + axis.y*axis.y + axis.z*axis.z);
@@ -243,6 +256,8 @@ namespace ROBOTICS_LAB
     {
         Vec4 axis = {0};
         get_angle_axis_from_transform(&axis, transform);
+        std::cout << "Quat from axis-angle:\n";
+        print_vector(axis);
 
         float sin_theta_half = sin(axis.w / 2);
         float cos_theta_half = cos(axis.w / 2);
