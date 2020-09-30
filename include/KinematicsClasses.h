@@ -6,11 +6,15 @@
 namespace ROBOTICS_LAB
 {
 
-typedef class Joint;
-typedef class Link;
+class Joint;
+class Link;
+class Chain;
+
+
 
 class Joint
 {
+    std::string name;
     Vec4 axis_angle;
     struct parent
     {
@@ -21,8 +25,21 @@ class Joint
 
 class Link
 {
+    std::string name;
     Joint* parent_joint;
     Joint* child_joint;
+};
+
+class Chain
+{
+    std::string name;
+    Link base_link;
+    struct children
+    {
+        int count;
+        Joint* joints_array; // = new Joints[chain.children.count]; 
+        Link* links_array; // = new Joints[chain.children.count];
+    };
 };
 
 };
