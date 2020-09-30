@@ -166,7 +166,7 @@ namespace ROBOTICS_LAB
         {
 
             std::cout << "Singular case, theta = +-pi " << theta <<  "\n" ;
-            constexpr bool NEGATIVE = true;
+            #define NEGATIVE true;
             bool sign_xy = (transform.column[1].data[0] < 0.0f) == NEGATIVE;
 
             bool sign_xz = (transform.column[2].data[0] < 0.0f) == NEGATIVE;
