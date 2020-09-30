@@ -15,8 +15,7 @@ class Joint
     struct parent
     {
         Link* link;
-        Vec3 position_offset;
-        Vec3 rpy_offset;
+        HomogenousTransform pose_offset;
     };
 };
 
