@@ -374,7 +374,7 @@ namespace ROBOTICS_LAB
         }
     }
 
-    static inline void display_test_output(bool state, char* test_name)
+    static inline void display_test_output(bool state, std::string test_name)
     {
         if(state)
         {

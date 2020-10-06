@@ -29,9 +29,9 @@ int main()
     {
         current_link = next_link;
         std::cout << current_link->name << "\n";
-        //ROBOTICS_LAB::HomogenousTransform transform = ROBOTICS_LAB::calculate_pose(current_link);
-
-
+        ROBOTICS_LAB::HomogenousTransform transform = ROBOTICS_LAB::calculate_pose(current_link);
+        ROBOTICS_LAB::print_homogenous_transform(transform);
+        
         next_link = ROBOTICS_LAB::get_next_link(chain, current_link);
     }
 
