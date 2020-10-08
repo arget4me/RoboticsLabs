@@ -46,13 +46,13 @@ namespace ROBOTICS_LAB
 
     
 
-    inline HomogenousTransform get_identity_matrix();
+    HomogenousTransform get_identity_matrix();
 
-    inline HomogenousTransform get_transform_from_eulerZYX(const Vec3& xyz_input);
+    HomogenousTransform get_transform_from_eulerZYX(const Vec3& xyz_input);
 
-    inline HomogenousTransform get_transform_from_angle_axis(const Vec4& axis_angle);
+    HomogenousTransform get_transform_from_angle_axis(const Vec4& axis_angle);
 
-    inline HomogenousTransform get_transform_from_quaternion(const Vec4& quaternion);
+    HomogenousTransform get_transform_from_quaternion(const Vec4& quaternion);
 
     void get_angle_axis_from_transform(Vec4* axis_angle_out, const HomogenousTransform&  transform);
 

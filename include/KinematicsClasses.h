@@ -12,6 +12,7 @@ struct Chain;
 
 struct Joint
 {
+    public:
     std::string name;
     Vec4 axis_angle;
     struct
@@ -26,6 +27,7 @@ struct Joint
 
 struct Link
 {
+    public:
     std::string name;
     Joint* parent_joint;
     Joint* child_joint;
@@ -36,6 +38,7 @@ struct Link
 
 struct Chain
 {
+    public:
     std::string name;
     Link base_link;
     Joint base_joint;
@@ -50,9 +53,9 @@ struct Chain
     ~Chain();
 };
 
-inline void set_joint_angle(Joint* joint, float angle);
+void set_joint_angle(Joint* joint, float angle);
 
-inline void set_link_offset(Link* link, HomogenousTransform pose_offset);
+void set_link_offset(Link* link, HomogenousTransform pose_offset);
 
 Link* get_next_link(Chain& chain, Link* current_link);
 
@@ -115,14 +118,14 @@ ROBOTICS_LAB::Link* ROBOTICS_LAB::get_next_link(Chain& chain, Link* current_link
     }
 }
 
-inline void ROBOTICS_LAB::set_joint_angle(Joint* joint, float angle) {
+void ROBOTICS_LAB::set_joint_angle(Joint* joint, float angle) {
     if(joint != nullptr)
     {
         joint->axis_angle.data[3] = angle;
     }
 }
 
-inline void ROBOTICS_LAB::set_link_offset(Link* link, HomogenousTransform pose_offset) {
+void ROBOTICS_LAB::set_link_offset(Link* link, HomogenousTransform pose_offset) {
     if(link != nullptr && link->child_joint != nullptr)
     {
         link->child_joint->parent.pose_offset = pose_offset;
