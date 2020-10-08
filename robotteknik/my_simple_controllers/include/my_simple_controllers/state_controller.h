@@ -4,7 +4,9 @@
 #include <ros/ros.h>
 #include <controller_interface/controller.h>
 #include <hardware_interface/joint_state_interface.h>
+#include <HomogenousTransform.h>
 #include <KinematicsClasses.h>
+#include <tf/transform_broadcaster.h>
 
 namespace my_simple_controllers {
 
@@ -19,6 +21,8 @@ namespace my_simple_controllers {
 		      ros::NodeHandle& root_nh, ros::NodeHandle& controller_nh);
     private:
     ROBOTICS_LAB::Chain chain = ROBOTICS_LAB::Chain("Lab2-5-chain", 3);
+    hardware_interface::JointStateHandle joint_handles[3];
+    tf::TransformBroadcaster broadcaster;
   };
 
 
