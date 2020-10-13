@@ -2,15 +2,17 @@
 #include <kdl/chain.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/treefksolverpos_recursive.hpp>
+#include <sensor_msgs/JointState.h>
 
 #define RANDOM_HEADER_IMPLEMENTATION
 #include <Random.h>
 #include <iostream>
 
+static KDL::JntArray* global_joints_ptr = nullptr; 
 
 void print_kdl_frame(const KDL::Frame& frame, const std::string& frame_name)
 {
-    std::cout << "Frame = " << frame_name << "\n[\n";
+    ROS_INFO("\nFrame = %s \n[", frame_name.c_str());
     for(int i = 0; i < 4; i++)
     {
         std::cout << "  ";
@@ -24,7 +26,19 @@ void print_kdl_frame(const KDL::Frame& frame, const std::string& frame_name)
         }
         std::cout << "\n";
     }
-    std::cout << "]\n";
+    std::cout << "]\n\n";
+}
+
+void joint_states_callback(const sensor_msgs::JointState::ConstPtr& joint_state_msg)
+{
+    for(int i = 0; i < joint_state_msg->position.size(); i++)
+    {
+        //std::cout << "[" << i << "] : " << joint_state_msg->name[i] << " = " << joint_state_msg->position[i] << "\n";
+        if(global_joints_ptr != nullptr)
+        {
+            (*global_joints_ptr)(i) = (double)joint_state_msg->position[i];
+        }
+    }
 }
 
 int main(int argc, char* argv[])
@@ -46,7 +60,6 @@ int main(int argc, char* argv[])
         return false;
     }
 
-
     /*
         fk solver example
         https://www.orocos.org/wiki/Kinematic_and_Dynamic_Solvers.html
@@ -55,40 +68,43 @@ int main(int argc, char* argv[])
         https://www.orocos.org/kdl/examples.html
 
     */
-
     KDL::TreeFkSolverPos_recursive fksolver(tree);
-    KDL::JntArray q(tree.getNrOfJoints());
-
-    for(int i = 0; i < tree.getNrOfJoints(); i++)
-    {
-        float value = randf() * 3.14f * 2.0f;
-        q(i) = (double)value;
-    }
-    std::cout << "q = [\n" << q.data << "\n]\n";
-
-
+    KDL::JntArray joints(tree.getNrOfJoints());
+    global_joints_ptr = &joints;
     KDL::Frame F_result;
-
-    int i = 0;
-    for(std::map<std::string,KDL::TreeElement>::const_iterator s = tree.getSegments().begin(); s != tree.getSegments().end(); s++)
-    {
-        std::cout << "Segments = " << s->second.segment.getName() << "\n";
-    }
-
     std::string target_segment = "three_dof_planar_eef";
 
-    fksolver.JntToCart(q, F_result, target_segment);
-
-    
-    print_kdl_frame(F_result, target_segment);
-
     /*
-    while(nh.ok())
-    {
+        for(int i = 0; i < tree.getNrOfJoints(); i++)
+        {
+            float value = randf() * 3.14f * 2.0f;
+            joints(i) = (double)value;
+        }
+        std::cout << "joints = [\n" << joints.data << "\n]\n";
 
+        for(std::map<std::string,KDL::TreeElement>::const_iterator s = tree.getSegments().begin(); s != tree.getSegments().end(); s++)
+        {
+            std::cout << "Segments = " << s->second.segment.getName() << "\n";
+        }
+    
+    */
+    
+
+    ros::Subscriber joint_states_subscriber = node.subscribe("joint_states", 10, joint_states_callback);
+
+    ros::Time previous_second = ros::Time::now();
+    while(node.ok())
+    {
+        if(ros::Time::now() - previous_second >= ros::Duration(1))
+        {
+
+            fksolver.JntToCart(joints, F_result, target_segment);
+            print_kdl_frame(F_result, target_segment);
+
+            previous_second += ros::Duration(1);
+        }
         ros::spinOnce();
     }
-    */
 
     return 0;
 }
