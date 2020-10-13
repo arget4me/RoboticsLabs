@@ -47,13 +47,22 @@ int main(int argc, char* argv[])
     }
 
 
+    /*
+        fk solver example
+        https://www.orocos.org/wiki/Kinematic_and_Dynamic_Solvers.html
+
+        API examples
+        https://www.orocos.org/kdl/examples.html
+
+    */
+
     KDL::TreeFkSolverPos_recursive fksolver(tree);
     KDL::JntArray q(tree.getNrOfJoints());
 
     for(int i = 0; i < tree.getNrOfJoints(); i++)
     {
         float value = randf() * 3.14f * 2.0f;
-        q.data[i] = value;
+        q(i) = (double)value;
     }
     std::cout << "q = [\n" << q.data << "\n]\n";
 

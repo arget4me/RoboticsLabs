@@ -74,6 +74,8 @@ namespace ROBOTICS_LAB
 
     void test_homogenous_transform();
 };
+#endif
+
 
 //#define HOMOGENOUS_TRANSFORM_IMPLEMENTATION //Define this before the include in the file you want the implementation
 #ifdef HOMOGENOUS_TRANSFORM_IMPLEMENTATION
@@ -690,6 +692,3 @@ namespace ROBOTICS_LAB
 
 
 
-
-
-#endif

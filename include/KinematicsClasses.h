@@ -62,6 +62,8 @@ Link* get_next_link(Chain& chain, Link* current_link);
 HomogenousTransform calculate_pose(Link* current_link);
 
 };
+#endif
+
 
 //#define KINEMATICS_CLASSES_IMPLEMENTATION //Define this before the include in the file you want the implementation
 #ifdef KINEMATICS_CLASSES_IMPLEMENTATION
@@ -166,4 +168,3 @@ ROBOTICS_LAB::HomogenousTransform ROBOTICS_LAB::calculate_pose(Link* current_lin
 
 
 
-#endif

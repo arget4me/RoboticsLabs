@@ -6,6 +6,7 @@ const float randf();
 
 #endif
 
+
 //#define RANDOM_HEADER_IMPLEMENTATION
 #ifdef RANDOM_HEADER_IMPLEMENTATION
 const float randf()
