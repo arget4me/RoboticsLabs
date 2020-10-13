@@ -2,6 +2,7 @@
 #include <kdl/chain.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/treefksolverpos_recursive.hpp>
+#include <kdl/treejnttojacsolver.hpp>
 #include <sensor_msgs/JointState.h>
 
 #define RANDOM_HEADER_IMPLEMENTATION
@@ -20,6 +21,25 @@ void print_kdl_frame(const KDL::Frame& frame, const std::string& frame_name)
         {
             std::cout << frame(i,j);
             if(j % 4 != 3)
+            {
+                std::cout << ",  ";
+            }
+        }
+        std::cout << "\n";
+    }
+    std::cout << "]\n\n";
+}
+
+void print_kdl_jacobian(const KDL::Jacobian& jacobian, const std::string& frame_name)
+{
+    ROS_INFO("\nJacobian = %s \n[", frame_name.c_str());
+    for(int i = 0; i < 6; i++)
+    {
+        std::cout << "  ";
+        for(int j = 0; j < jacobian.columns(); j++)
+        {
+            std::cout << jacobian(i,j);
+            if(j % jacobian.columns() != jacobian.columns()-1)
             {
                 std::cout << ",  ";
             }
@@ -71,24 +91,11 @@ int main(int argc, char* argv[])
     KDL::TreeFkSolverPos_recursive fksolver(tree);
     KDL::JntArray joints(tree.getNrOfJoints());
     global_joints_ptr = &joints;
-    KDL::Frame F_result;
+    KDL::Frame frame_result;
     std::string target_segment = "three_dof_planar_eef";
 
-    /*
-        for(int i = 0; i < tree.getNrOfJoints(); i++)
-        {
-            float value = randf() * 3.14f * 2.0f;
-            joints(i) = (double)value;
-        }
-        std::cout << "joints = [\n" << joints.data << "\n]\n";
-
-        for(std::map<std::string,KDL::TreeElement>::const_iterator s = tree.getSegments().begin(); s != tree.getSegments().end(); s++)
-        {
-            std::cout << "Segments = " << s->second.segment.getName() << "\n";
-        }
-    
-    */
-    
+    KDL::TreeJntToJacSolver jacobian_solver(tree);
+    KDL::Jacobian jacobian_result(tree.getNrOfJoints());
 
     ros::Subscriber joint_states_subscriber = node.subscribe("joint_states", 10, joint_states_callback);
 
@@ -98,8 +105,26 @@ int main(int argc, char* argv[])
         if(ros::Time::now() - previous_second >= ros::Duration(1))
         {
 
-            fksolver.JntToCart(joints, F_result, target_segment);
-            print_kdl_frame(F_result, target_segment);
+            fksolver.JntToCart(joints, frame_result, target_segment);
+            print_kdl_frame(frame_result, target_segment);
+
+            /*
+                http://docs.ros.org/jade/api/orocos_kdl/html/treejnttojacsolver_8cpp_source.html
+                Base-frame of the tree is the base of the jacobian
+
+                What effect does the change of base have:
+                The base of the jacobian works in the a similar way to the base of a transform matrix.
+                In the case of the Jacobian, it expresses "velocity". It means that if in the case of a planar
+                arm, if the base-frame and the base of the jacobian are oriented in the same way the jacobian will
+                be the same for the positional part. the angular part is always the same since it's planar, and will only
+                rotate around one axis.
+            */
+            jacobian_solver.JntToJac(joints, jacobian_result, target_segment);
+            print_kdl_jacobian(jacobian_result, target_segment);
+
+            //EIGEN MATRIX: //jacobian_result.data;
+
+
 
             previous_second += ros::Duration(1);
         }
