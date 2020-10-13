@@ -4,6 +4,7 @@
 #include <kdl/treefksolverpos_recursive.hpp>
 #include <kdl/treejnttojacsolver.hpp>
 #include <sensor_msgs/JointState.h>
+#include <eigen3/Eigen/Dense>
 
 #define RANDOM_HEADER_IMPLEMENTATION
 #include <Random.h>
@@ -12,6 +13,7 @@
 static KDL::JntArray* global_joints_ptr = nullptr; 
 static std::string target_segment = "three_dof_planar_eef";
 static sensor_msgs::JointState joint_states;
+static double GlobalAnimationTime = 0.01;
 
 void joint_states_callback(const sensor_msgs::JointState::ConstPtr& joint_state_msg)
 {
@@ -90,7 +92,7 @@ void publish_joint_state(const ros::Publisher& joint_states_publisher, const KDL
     joint_states.header.stamp = ros::Time::now();
 
     joint_states_publisher.publish(joint_states);
-    ros::Duration(0.01).sleep();
+    ros::Duration(GlobalAnimationTime).sleep();
     ros::spinOnce();
 }
 
@@ -114,7 +116,7 @@ bool calculate_IK(const KDL::JntArray& joints, const KDL::JntArray& goal, const 
         fksolver.JntToCart(guess, frame_result, target_segment);
         //print_kdl_frame(frame_result, target_segment);
         KDL::JntArray current_pose = kdl_frame_to_pose(frame_result);
-        auto offset = goal.data - current_pose.data;
+        Eigen::Matrix<double,6,1> offset = goal.data - current_pose.data;
 
         std::cout << "\nCurrent: \n" << current_pose.data;
         std::cout << "\nGoal: \n" << goal.data;
@@ -127,7 +129,7 @@ bool calculate_IK(const KDL::JntArray& joints, const KDL::JntArray& goal, const 
             guess = old_guess;
             break;
         }
-        if(current_error <= 1e-2)
+        if(current_error <= 1e-5)
         {
             converged = true;
             break;
@@ -135,8 +137,16 @@ bool calculate_IK(const KDL::JntArray& joints, const KDL::JntArray& goal, const 
         prev_error = current_error;
         old_guess = guess;
 
+        if(current_error > 1.0)
+        {
+            offset /= current_error;
+        }
+
         jacobian_solver.JntToJac(guess, jacobian_result, target_segment);
-        auto joint_offset =  lambda * jacobian_result.data.transpose() * (offset /current_error);        
+        Eigen::Matrix<double,3,3> square = jacobian_result.data.transpose() * jacobian_result.data;
+        Eigen::Matrix<double,3,3> inverse = square.inverse();
+        auto joint_offset =  lambda * inverse * jacobian_result.data.transpose() * offset;        
+        //auto joint_offset =  lambda * jacobian_result.data.transpose() * offset;        
         guess.data += joint_offset;
 
         std::cout << "\n Joint offset = \n" << joint_offset << "\n\n";
@@ -201,6 +211,8 @@ int main(int argc, char* argv[])
     node.param("lab3_node/pose_roll", pose.data[3], 0.0);
     node.param("lab3_node/pose_pitch", pose.data[4], 0.0);
     node.param("lab3_node/pose_yaw", pose.data[5], 0.0);
+
+    node.param("lab3_node/anim_time", GlobalAnimationTime, 0.01);
 
     ros::Time previous_second = ros::Time::now();
     while(node.ok())
