@@ -142,6 +142,8 @@ bool calculate_IK(const KDL::JntArray& joints, const KDL::JntArray& goal, const 
             offset /= current_error;
         }
 
+        //@TODO: Constrain guess to limits of joints.
+
         jacobian_solver.JntToJac(guess, jacobian_result, target_segment);
         Eigen::Matrix<double,3,3> square = jacobian_result.data.transpose() * jacobian_result.data;
         Eigen::Matrix<double,3,3> inverse = square.inverse();
