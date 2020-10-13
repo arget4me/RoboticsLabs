@@ -13,6 +13,24 @@ static KDL::JntArray* global_joints_ptr = nullptr;
 static std::string target_segment = "three_dof_planar_eef";
 static sensor_msgs::JointState joint_states;
 
+void joint_states_callback(const sensor_msgs::JointState::ConstPtr& joint_state_msg)
+{
+    static bool once = true;
+    if(once)
+    {
+        joint_states = *joint_state_msg;
+        once = false;
+    }
+    for(int i = 0; i < joint_state_msg->position.size(); i++)
+    {
+        //std::cout << "[" << i << "] : " << joint_state_msg->name[i] << " = " << joint_state_msg->position[i] << "\n";
+        if(global_joints_ptr != nullptr)
+        {
+            (*global_joints_ptr)(i) = (double)joint_state_msg->position[i];
+        }
+    }
+}
+
 void print_kdl_frame(const KDL::Frame& frame, const std::string& frame_name)
 {
     ROS_INFO("\nFrame = %s \n[", frame_name.c_str());
@@ -51,24 +69,6 @@ void print_kdl_jacobian(const KDL::Jacobian& jacobian, const std::string& frame_
     std::cout << "]\n\n";
 }
 
-void joint_states_callback(const sensor_msgs::JointState::ConstPtr& joint_state_msg)
-{
-    static bool once = true;
-    if(once)
-    {
-        joint_states = *joint_state_msg;
-        once = false;
-    }
-    for(int i = 0; i < joint_state_msg->position.size(); i++)
-    {
-        //std::cout << "[" << i << "] : " << joint_state_msg->name[i] << " = " << joint_state_msg->position[i] << "\n";
-        if(global_joints_ptr != nullptr)
-        {
-            (*global_joints_ptr)(i) = (double)joint_state_msg->position[i];
-        }
-    }
-}
-
 const KDL::JntArray kdl_frame_to_pose(const KDL::Frame& frame_result)
 {
     KDL::JntArray pose(6);
@@ -97,8 +97,7 @@ void publish_joint_state(const ros::Publisher& joint_states_publisher, const KDL
 bool calculate_IK(const KDL::JntArray& joints, const KDL::JntArray& goal, const KDL::Tree& tree, const ros::Publisher& joint_states_publisher)
 {
     KDL::JntArray guess = joints;
-
-
+    KDL::JntArray old_guess = guess;
     bool converged = false;
     KDL::Frame frame_result;
     KDL::Jacobian jacobian_result(tree.getNrOfJoints());
@@ -110,43 +109,47 @@ bool calculate_IK(const KDL::JntArray& joints, const KDL::JntArray& goal, const 
     double prev_error = 100000.0;
     double lambda = 0.25;
     
-    while(!converged && (i++ < 200))
+    while(!converged && (i++ < 100))
     {
         fksolver.JntToCart(guess, frame_result, target_segment);
         //print_kdl_frame(frame_result, target_segment);
         KDL::JntArray current_pose = kdl_frame_to_pose(frame_result);
+        auto offset = goal.data - current_pose.data;
+
         std::cout << "\nCurrent: \n" << current_pose.data;
         std::cout << "\nGoal: \n" << goal.data;
-
-        auto offset = goal.data - current_pose.data;
         std::cout << "\noffset = \n" << offset << "\n";
 
-        if(prev_error < offset.norm())
+        double current_error = offset.norm();
+        if(current_error > prev_error)
         {
-            ROS_ERROR("Error increasing! %f > %f", offset.norm(), prev_error);
-            //break;
+            ROS_ERROR("Error increasing! %f > %f", current_error, prev_error);
+            guess = old_guess;
+            break;
         }
-        prev_error = offset.norm();
-
-        if(offset.norm() <= 1e-2)
+        if(current_error <= 1e-2)
         {
             converged = true;
             break;
         }
+        prev_error = current_error;
+        old_guess = guess;
+
         jacobian_solver.JntToJac(guess, jacobian_result, target_segment);
-        //print_kdl_jacobian(jacobian_result, target_segment);
-
-        auto joint_offset =  lambda * jacobian_result.data.transpose() * (offset / offset.norm());
-        
-        std::cout << "\n Joint offset = \n" << joint_offset << "\n\n";
-
+        auto joint_offset =  lambda * jacobian_result.data.transpose() * (offset /current_error);        
         guess.data += joint_offset;
 
+        std::cout << "\n Joint offset = \n" << joint_offset << "\n\n";
         std::cout << "[" << i <<"] Guess = \n" << guess.data << "\n\n";
 
         publish_joint_state(joint_states_publisher, guess);
     }
-
+        
+    publish_joint_state(joint_states_publisher, guess);
+    
+    fksolver.JntToCart(guess, frame_result, target_segment);
+    KDL::JntArray current_pose = kdl_frame_to_pose(frame_result);
+    std::cout << "\nFinal pose: \n" << current_pose.data << "\n\n";
 
     return converged;
 }
