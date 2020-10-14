@@ -8,6 +8,18 @@
 
 namespace my_simple_controllers {
 
+const KDL::JntArray kdl_frame_to_pose(const KDL::Frame& frame_result)
+{
+    KDL::JntArray pose(6);
+    pose(0) = frame_result.p(0);
+    pose(1) = frame_result.p(1);
+    pose(2) = frame_result.p(2);
+
+    frame_result.M.GetRPY(pose.data[3], pose.data[4], pose.data[5]);
+
+    return pose;
+}
+
 void CartesianVelocityController::update(const ros::Time& time, const ros::Duration& period)
 {
    ROS_INFO("Cartesian Velocity Controller: update here");
@@ -16,18 +28,28 @@ void CartesianVelocityController::update(const ros::Time& time, const ros::Durat
       current configuration q and configurationspace velocity ˙q
    */
    KDL::JntArray q(3);
-   KDL::JntArray q_dot(3);
+   KDL::JntArray q_vel(3);
    for(int i = 0; i < 3; i++)
    {
       q(i) = joint_handles[i].getPosition();
-      q_dot(i) = joint_handles[i].getVelocity();
+      q_vel(i) = joint_handles[i].getVelocity();
    }
-   std::cout << "q =\n" << q.data << "\n ˙q =\n" << q_dot.data << "\n";
+   std::cout << "q =\n" << q.data << "\n q-vel =\n" << q_vel.data << "\n";
 
    /*@TODO:
    Calculate the Jacobian for the end effector frame J(q).
          @NOTE: needs the tree structure to get the jacobian
    */
+   KDL::Frame frame_result;
+   KDL::Jacobian jacobian_result(tree.getNrOfJoints());
+
+   //@NOTE: [IMPORTANT] q doesn't have joint names, link the up.
+
+   fksolver->JntToCart(q, frame_result, target_segment);
+   KDL::JntArray current_pose = kdl_frame_to_pose(frame_result);
+
+   jacobian_solver->JntToJac(q, jacobian_result, target_segment);
+        
 
    /*TODO:
    Calculate the current desired Cartesian pose p = p(i − 1) + ˙pdt, where ˙p is the
@@ -74,6 +96,11 @@ bool CartesianVelocityController::init(hardware_interface::VelocityJointInterfac
       joint_handles[1] = jvel->getHandle("three_dof_planar_joint2");
       joint_handles[2] = jvel->getHandle("three_dof_planar_joint3");
    }
+
+   p_vel = KDL::JntArray(6);
+
+   fksolver = new KDL::TreeFkSolverPos_recursive(tree);
+   jacobian_solver = new KDL::TreeJntToJacSolver(tree);
 
    /*
    @TODO: Expose to the outside a topic on which commanded velocity in Cartesian space
