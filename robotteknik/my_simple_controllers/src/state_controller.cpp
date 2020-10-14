@@ -10,6 +10,22 @@
 
 namespace my_simple_controllers {
 
+void CartesianVelocityController::update(const ros::Time& time, const ros::Duration& period)
+{
+   ROS_INFO("Cartesian Velocity Controller: update here");
+
+}
+
+bool CartesianVelocityController::init(hardware_interface::VelocityJointInterface* jvel, 
+	      ros::NodeHandle& root_nh, ros::NodeHandle& controller_nh)
+{
+   ROS_INFO("Cartesian Velocity Controller: initialize here");
+
+         
+   return true;
+}
+
+
 void StateController::update(const ros::Time& time, const ros::Duration& period) {
    ROS_INFO("State Controller: here read joint handles, compute forward kinematic model and publish tool tip pose to TF");
 
