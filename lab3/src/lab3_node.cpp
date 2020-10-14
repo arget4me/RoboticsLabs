@@ -114,7 +114,6 @@ bool calculate_IK(const KDL::JntArray& joints, const KDL::JntArray& goal, const 
     while(!converged && (i++ < 100))
     {
         fksolver.JntToCart(guess, frame_result, target_segment);
-        //print_kdl_frame(frame_result, target_segment);
         KDL::JntArray current_pose = kdl_frame_to_pose(frame_result);
         Eigen::Matrix<double,6,1> offset = goal.data - current_pose.data;
 
@@ -145,9 +144,8 @@ bool calculate_IK(const KDL::JntArray& joints, const KDL::JntArray& goal, const 
         //@TODO: Constrain guess to limits of joints.
 
         jacobian_solver.JntToJac(guess, jacobian_result, target_segment);
-        Eigen::Matrix<double,3,3> square = jacobian_result.data.transpose() * jacobian_result.data;
-        Eigen::Matrix<double,3,3> inverse = square.inverse();
-        auto joint_offset =  lambda * inverse * jacobian_result.data.transpose() * offset;        
+        auto psuedo_inverse = (jacobian_result.data.transpose() * jacobian_result.data).inverse() * jacobian_result.data.transpose();
+        auto joint_offset =  lambda * psuedo_inverse * offset;        
         //auto joint_offset =  lambda * jacobian_result.data.transpose() * offset;        
         guess.data += joint_offset;
 
