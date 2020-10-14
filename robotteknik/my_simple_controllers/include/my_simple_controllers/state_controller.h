@@ -8,6 +8,7 @@
 #include <HomogenousTransform.h>
 #include <KinematicsClasses.h>
 #include <tf/transform_broadcaster.h>
+#include <kdl/tree.hpp>
 
 namespace my_simple_controllers {
 
@@ -29,18 +30,14 @@ namespace my_simple_controllers {
   class CartesianVelocityController : public controller_interface::Controller<hardware_interface::VelocityJointInterface>
   {
     public:
+      virtual void update(const ros::Time& time, const ros::Duration& period);
 
-    virtual void update(const ros::Time& time, const ros::Duration& period);
-
-    virtual bool init(hardware_interface::VelocityJointInterface* jvel, 
-        ros::NodeHandle& root_nh, ros::NodeHandle& controller_nh);
+      virtual bool init(hardware_interface::VelocityJointInterface* jvel, 
+          ros::NodeHandle& root_nh, ros::NodeHandle& controller_nh);
 
     private:
-
-    hardware_interface::VelocityJointInterface velocity_joint_handles[3];
-    //tf::TransformBroadcaster broadcaster;
-
-
+      hardware_interface::JointStateHandle joint_handles[3];
+      KDL::Tree tree;
 
   };
 

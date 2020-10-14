@@ -5,6 +5,10 @@ joint_state_controller:
 my_state_controller:
     type: my_simple_controllers/StateController
 
+my_velocity_controller:
+    type: my_simple_controllers/CartesianVelocityController
+
+
 position_joint_trajectory_controller:
     type: velocity_controllers/JointTrajectoryController
     joints:

@@ -1,7 +1,7 @@
 #ifndef HOMOGENOUS_TRANSFORM_HEADER
 #define HOMOGENOUS_TRANSFORM_HEADER
 
-#define PI 3.141593f
+#define PI_CONSTANT 3.141593f
 
 namespace ROBOTICS_LAB
 {
@@ -163,10 +163,10 @@ namespace ROBOTICS_LAB
             axis_angle_out->w = 0.0f;
             //axis is Undefined
         }
-        else if(compare_values(fabs(fabs(theta) - PI), 0.0f, 4))
+        else if(compare_values(fabs(fabs(theta) - PI_CONSTANT), 0.0f, 4))
         {
 
-            std::cout << "Singular case, theta = +-pi " << theta <<  "\n" ;
+            std::cout << "Singular case, theta = +-PI_CONSTANT " << theta <<  "\n" ;
             #define NEGATIVE true;
             bool sign_xy = (transform.column[1].data[0] < 0.0f) == NEGATIVE;
 
@@ -535,7 +535,7 @@ namespace ROBOTICS_LAB
                     break;
                 }
             }
-            Vec4 XYZ = {PI/2, PI/2, PI/2, 1};
+            Vec4 XYZ = {PI_CONSTANT/2, PI_CONSTANT/2, PI_CONSTANT/2, 1};
             transform = get_transform_from_eulerZYX(XYZ.to_vec3);
             Eigen::Matrix3f check_transform;
             check_transform = Eigen::AngleAxisf(XYZ.z, Eigen::Vector3f::UnitZ())
@@ -564,7 +564,7 @@ namespace ROBOTICS_LAB
 
         {//RPY from Transform
             bool passed_transform_to_rpy = true;
-            Vec4 XYZ = {PI/1.0f, PI/4.0f, PI/2.0f, 1};
+            Vec4 XYZ = {PI_CONSTANT/1.0f, PI_CONSTANT/4.0f, PI_CONSTANT/2.0f, 1};
             transform = get_transform_from_eulerZYX(XYZ.to_vec3);
             //std::cout << "Euler XYZ angles: (transform from eulerZYX)\n";
             //print_vector(XYZ);
@@ -586,11 +586,11 @@ namespace ROBOTICS_LAB
                     value_left = roundf(value_left * 1e6) * 1e-6;
                     value_right = roundf(value_right * 1e6) * 1e-6;
 
-                    //-PI and +PI should be reset to 0.0f if close
-                    if(fabs(fabs(value_left) - PI) <= 1e-4)value_left = 0.0f;
-                    if(fabs(fabs(value_right) - PI) <= 1e-4)value_right = 0.0f;
+                    //-PI_CONSTANT and +PI_CONSTANT should be reset to 0.0f if close
+                    if(fabs(fabs(value_left) - PI_CONSTANT) <= 1e-4)value_left = 0.0f;
+                    if(fabs(fabs(value_right) - PI_CONSTANT) <= 1e-4)value_right = 0.0f;
 
-                    if(value_left != value_right && (PI - value_left) != value_right)
+                    if(value_left != value_right && (PI_CONSTANT - value_left) != value_right)
                     {
                         strikes++;
                         break;
@@ -610,7 +610,7 @@ namespace ROBOTICS_LAB
         {
             bool passed_angle_axis = true;
             {
-                Vec4 axis = {1, 0, 0, PI/8};
+                Vec4 axis = {1, 0, 0, PI_CONSTANT/8};
                 //std::cout << "Angle in: " << angle << "\n";
                 //print_vector(axis);
                 transform = get_transform_from_angle_axis(axis);
@@ -625,14 +625,14 @@ namespace ROBOTICS_LAB
                 if(!(compare_values(axis.x, 1, 4) &&
                     compare_values(axis.y, 0, 4) &&
                     compare_values(axis.z, 0, 4) &&
-                    compare_values(axis.w, PI/8, 4)))
+                    compare_values(axis.w, PI_CONSTANT/8, 4)))
                 {
                     passed_angle_axis = false;
                 }
             }
 
             {
-                Vec4 axis = {1/sqrt(2), 1/sqrt(2), 0, PI/2};
+                Vec4 axis = {1/sqrt(2), 1/sqrt(2), 0, PI_CONSTANT/2};
                 //std::cout << "Angle in: " << angle << "\n";
                 //print_vector(axis);
                 transform = get_transform_from_angle_axis(axis);
@@ -647,7 +647,7 @@ namespace ROBOTICS_LAB
                 if(!(compare_values(axis.x, 1/sqrt(2), 4) &&
                     compare_values(axis.y, 1/sqrt(2), 4) &&
                     compare_values(axis.z, 0, 4) &&
-                    compare_values(axis.w, PI/2, 4)))
+                    compare_values(axis.w, PI_CONSTANT/2, 4)))
                 {
                     passed_angle_axis = false;
                 }
@@ -657,7 +657,7 @@ namespace ROBOTICS_LAB
 
         {
             bool passed_quaternion = true;
-            Vec4 axis = {0, 1, 0, PI / 3.0f};
+            Vec4 axis = {0, 1, 0, PI_CONSTANT / 3.0f};
             transform = get_transform_from_angle_axis(axis);
 
             Vec4 quaternion = {0};
