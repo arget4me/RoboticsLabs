@@ -148,6 +148,17 @@ bool calculate_IK(const KDL::JntArray& joints, const KDL::JntArray& goal, const 
         auto joint_offset =  lambda * psuedo_inverse * offset;        
         //auto joint_offset =  lambda * jacobian_result.data.transpose() * offset;        
         guess.data += joint_offset;
+        for(int i = 0; i < 3; i++)
+        {
+            if(guess.data[i] < -1.9)
+            {
+                guess.data[i] = -1.9;   
+            }
+            else if(guess.data[i] > 1.9)
+            {
+                guess.data[i] = 1.9;   
+            }
+        }
 
         std::cout << "\n Joint offset = \n" << joint_offset << "\n\n";
         std::cout << "[" << i <<"] Guess = \n" << guess.data << "\n\n";

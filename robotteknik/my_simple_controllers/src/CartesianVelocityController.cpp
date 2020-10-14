@@ -34,20 +34,12 @@ void CartesianVelocityController::update(const ros::Time& time, const ros::Durat
       q(i) = joint_handles[i].getPosition();
       q_vel(i) = joint_handles[i].getVelocity();
    }
-   std::cout << "q =\n" << q.data << "\n q-vel =\n" << q_vel.data << "\n";
 
    /*@TODO:
    Calculate the Jacobian for the end effector frame J(q).
          @NOTE: needs the tree structure to get the jacobian
    */
-   KDL::Frame frame_result;
    KDL::Jacobian jacobian_result(tree.getNrOfJoints());
-
-   //@NOTE: [IMPORTANT] q doesn't have joint names, link the up.
-
-   fksolver->JntToCart(q, frame_result, target_segment);
-   KDL::JntArray current_pose = kdl_frame_to_pose(frame_result);
-
    jacobian_solver->JntToJac(q, jacobian_result, target_segment);
         
 
@@ -57,24 +49,47 @@ void CartesianVelocityController::update(const ros::Time& time, const ros::Durat
       (the duration parameter of the update function). 
 
       p(0) is the initial starting pose obtained through the FK model.
-      @NOTE: is p(0) calculated once in init(...) and then used all the time or is p(0) the current position.
+      @NOTE: is p(i-1) the current FK(q) pose??.
    */
+   KDL::Frame frame_result;
+   fksolver->JntToCart(q, frame_result, target_segment);
+   KDL::JntArray current_pose = kdl_frame_to_pose(frame_result);
+
+   double dt = double(period.sec) + double(period.nsec)*1e-9;
+
+   KDL::JntArray desired_pose(6);
+   desired_pose.data = current_pose.data + p_vel.data * dt;
 
    /*TODO:
    Calculate the error in desired pose as e = p − FK(q).
    */
+   KDL::JntArray error(6);
+   error.data = desired_pose.data - current_pose.data;
+
 
    /*TODO:
    Calculate the desired control as u = Ke + ˙p
    */
 
+   KDL::JntArray control(6);
+   control.data = K * error.data + p_vel.data; 
+
+
    /*TODO:
    Calculate the desired joint control as ˙q = invJ(q)u.
    */
 
+   auto psuedo_inverse = (jacobian_result.data.transpose() * jacobian_result.data).inverse() * jacobian_result.data.transpose();
+   q_vel.data = psuedo_inverse * control.data;
+
    /*TODO:
    Set the desired velocity ˙q to the joint handles
    */
+
+   for(int i = 0; i < 3; i++)
+   {
+      
+   }
 
 }
 
