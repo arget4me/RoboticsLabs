@@ -9,4 +9,12 @@
     </description>
   </class>
   
+  <class name="my_simple_controllers/CartesianVelocityController" 
+         type="my_simple_controllers::CartesianVelocityController" 
+         base_class_type="controller_interface::ControllerBase">
+    <description>
+      Lab 4 Cartesian Velocity Controller
+    </description>
+  </class>
+
 </library>
