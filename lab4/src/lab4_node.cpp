@@ -38,20 +38,73 @@ const KDL::JntArray get_current_pose()
 }
 
 
-geometry_msgs::Twist get_next_velocity(int current_step, int max_nr_steps, double fixed_time_step)
+double trapezoidal_profile(double t, double time_final, double p_start, double p_final, double cruise_vel)
 {
-    geometry_msgs::Twist p_vel; //Initializes with 0 values.
-    if(current_step > 0 && current_step < max_nr_steps)
+    if(time_final < 1e-5)
+    {
+        return 0.0;
+    }
+
+    if(fabs((p_final - p_start) / time_final) >= cruise_vel)
+    {
+        ROS_ERROR("Cruise speed [%f] too small for distance [%f] with final time [%f]", cruise_vel, fabs(p_final - p_start), time_final);
+        return 0.0;
+    }
+
+    if(fabs(2 * (p_final - p_start) / time_final) < cruise_vel)
+    {
+        ROS_ERROR("Cruise speed [%f] too large for distance [%f] with final time [%f]", cruise_vel, fabs(p_final - p_start), time_final);
+        return 0.0;
+    }
+
+    double time_cruise = (p_start - p_final + cruise_vel * time_final) / cruise_vel;
+    double p_acceleration = (cruise_vel * cruise_vel) / (p_start - p_final + cruise_vel * time_final);
+
+    if( t >= 0 && t <= time_cruise)
+    {
+        //constant acceleration
+        return (p_start + 0.5 * p_acceleration * t * t);
+    }
+    else if (t > time_cruise && t <= time_final - time_cruise)
+    {
+        //constant velocity : Cruise part
+        return (p_start + p_acceleration * time_cruise * (t - time_cruise / 2.0));
+    }
+    else if(t > time_final - time_cruise && t <= time_final)
+    {
+        //constant deceleration
+        return (p_final - 0.5 * p_acceleration * (time_final - t) * (time_final - t));
+    }
+
+    ROS_ERROR("Time t [%f] out of range [0.0, %f]", t, time_final);
+    return 0.0;
+}
+
+KDL::JntArray rectelinear_path(const KDL::JntArray& start_pose, const KDL::JntArray pose_offset, double length, double s)
+{
+    KDL::JntArray pose(6);
+    pose.data = (start_pose.data + s * pose_offset.data / length);
+    return pose;
+}
+
+
+geometry_msgs::Twist get_next_velocity(const KDL::JntArray& start_pose, const KDL::JntArray pose_offset, 
+int current_step, int max_nr_steps, double fixed_time_step)
+{
+    geometry_msgs::Twist p_vel;
+    if(current_step >= 0 && current_step < max_nr_steps)
     {
         double d_current_step = (double)current_step;
         double d_max_nr_steps = (double)max_nr_steps;
-        double current_s = (d_current_step / d_max_nr_steps) * length;
-        double previous_s = ((d_current_step - 1) / d_max_nr_steps) * length;
 
-        KDL::JntArray previous_pose(6);
-        KDL::JntArray current_pose(6);
-        previous_pose.data = (start_pose.data + previous_s * pose_offset.data / length);
-        current_pose.data = (start_pose.data + current_s * pose_offset.data / length);
+        double t_prev = (d_current_step - 1) / d_max_nr_steps;
+        double t_current = (d_current_step) / d_max_nr_steps;
+
+        double previous_s = trapezoidal_profile(t_prev, 1.0, 0.0, length, length*1.8);
+        double current_s = trapezoidal_profile(t_current, 1.0, 0.0, length, length*1.8);
+
+        KDL::JntArray previous_pose = rectelinear_path(start_pose, pose_offset, length, previous_s);
+        KDL::JntArray current_pose = rectelinear_path(start_pose, pose_offset, length, current_s);
 
         KDL::JntArray vel(6);
         vel.data = (current_pose.data - previous_pose.data) / fixed_time_step;
@@ -110,13 +163,10 @@ int main(int argc, char* argv[])
 
     geometry_msgs::Twist eef_vel;
 
-    //node.param("goal_pose", goal_pose, goal_pose);
-
-    goal_pose.data[0] = 0.6;
-    goal_pose.data[1] = 0.2;
+    goal_pose.data[0] = 0.3;
+    goal_pose.data[1] = 0.3;
     goal_pose.data[2] = 0.05;
-    goal_pose.data[5] = 0.0;
-
+    goal_pose.data[5] = -3.1415/2.0;
 
     ros::Subscriber joint_state_subscriber = node.subscribe<sensor_msgs::JointState>("joint_states", 10, joint_states_callback);
     ros::Publisher command_publisher = node.advertise<geometry_msgs::Twist>("command", 10);
@@ -143,7 +193,7 @@ int main(int argc, char* argv[])
 
             if(ros::Time::now() - previous_time >= fixed_time_step)
             {
-                eef_vel = get_next_velocity(current_step++, max_nr_steps, dt);
+                eef_vel = get_next_velocity(start_pose, pose_offset, current_step++, max_nr_steps, dt);
                 command_publisher.publish(eef_vel);
                 previous_time += fixed_time_step;
                 //ROS_INFO("step: %d", current_step-1);
