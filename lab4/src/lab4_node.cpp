@@ -6,6 +6,9 @@
 #include <kdl/frames.hpp>
 #include <kdl/treefksolverpos_recursive.hpp>
 #include <eigen3/Eigen/Dense>
+#include <vector>
+#include <iostream>
+#include <fstream>
 
 static KDL::TreeFkSolverPos_recursive* fksolver;
 static const std::string target_segment = "three_dof_planar_eef";
@@ -16,6 +19,10 @@ static KDL::JntArray goal_pose(6);
 static KDL::JntArray pose_offset(6);
 static double length = 1;
 static ros::Time previous_time;
+static std::vector<KDL::JntArray> planned_trajectory;
+static std::vector<KDL::JntArray> trajectory;
+static std::vector<KDL::JntArray> joint_trajectory;
+
 
 const KDL::JntArray kdl_frame_to_pose(const KDL::Frame& frame_result)
 {
@@ -106,6 +113,11 @@ int current_step, int max_nr_steps, double fixed_time_step)
         KDL::JntArray previous_pose = rectelinear_path(start_pose, pose_offset, length, previous_s);
         KDL::JntArray current_pose = rectelinear_path(start_pose, pose_offset, length, current_s);
 
+        //save trajactories
+        planned_trajectory.push_back(current_pose);
+        trajectory.push_back(get_current_pose());
+        joint_trajectory.push_back(joints);
+
         KDL::JntArray vel(6);
         vel.data = (current_pose.data - previous_pose.data) / fixed_time_step;
 
@@ -162,11 +174,12 @@ int main(int argc, char* argv[])
     fksolver = new KDL::TreeFkSolverPos_recursive(tree);
 
     geometry_msgs::Twist eef_vel;
-
-    goal_pose.data[0] = 0.3;
-    goal_pose.data[1] = 0.3;
-    goal_pose.data[2] = 0.05;
-    goal_pose.data[5] = -3.1415/2.0;
+    node.param("lab4_node/pose_x", goal_pose.data[0], 0.0);
+    node.param("lab4_node/pose_y", goal_pose.data[1], 0.0);
+    node.param("lab4_node/pose_z", goal_pose.data[2], 0.05);
+    node.param("lab4_node/pose_roll", goal_pose.data[3], 0.0);
+    node.param("lab4_node/pose_pitch", goal_pose.data[4], 0.0);
+    node.param("lab4_node/pose_yaw", goal_pose.data[5], 0.0);
 
     ros::Subscriber joint_state_subscriber = node.subscribe<sensor_msgs::JointState>("joint_states", 10, joint_states_callback);
     ros::Publisher command_publisher = node.advertise<geometry_msgs::Twist>("command", 10);
@@ -202,6 +215,73 @@ int main(int argc, char* argv[])
 
         ros::spinOnce();
     }
+
+
+    //save trajactories
+    {
+        std::ofstream myfile;
+        myfile.open ("joint_trajectory.csv");
+        myfile << "joint_1" << ",";
+        myfile << "joint_2" << ",";
+        myfile << "joint_3" << ",";
+        for(int i = 0; i < trajectory.size(); i++)
+        {
+            myfile << "\n";
+            myfile << joint_trajectory[i].data[0] << ",";
+            myfile << joint_trajectory[i].data[1] << ",";
+            myfile << joint_trajectory[i].data[2] << ",";
+        }
+        myfile.flush();
+        myfile.close();
+    }
+
+    {
+        std::ofstream myfile;
+        myfile.open ("trajectory.csv");
+        myfile << "x" << ",";
+        myfile << "y" << ",";
+        myfile << "z" << ",";
+        myfile << "roll" << ",";
+        myfile << "pitch" << ",";
+        myfile << "yaw" << ",";
+        for(int i = 0; i < trajectory.size(); i++)
+        {
+            myfile << "\n";
+            myfile << trajectory[i].data[0] << ",";
+            myfile << trajectory[i].data[1] << ",";
+            myfile << trajectory[i].data[2] << ",";
+            myfile << trajectory[i].data[3] << ",";
+            myfile << trajectory[i].data[4] << ",";
+            myfile << trajectory[i].data[5] << ",";
+        }
+        myfile.flush();
+        myfile.close();
+    }
+
+    {
+        std::ofstream myfile;
+        myfile.open ("planned_trajectory.csv");
+        myfile << "x" << ",";
+        myfile << "y" << ",";
+        myfile << "z" << ",";
+        myfile << "roll" << ",";
+        myfile << "pitch" << ",";
+        myfile << "yaw" << ",";
+        for(int i = 0; i < planned_trajectory.size(); i++)
+        {
+            myfile << "\n";
+            myfile << planned_trajectory[i].data[0] << ",";
+            myfile << planned_trajectory[i].data[1] << ",";
+            myfile << planned_trajectory[i].data[2] << ",";
+            myfile << planned_trajectory[i].data[3] << ",";
+            myfile << planned_trajectory[i].data[4] << ",";
+            myfile << planned_trajectory[i].data[5] << ",";
+        }
+        myfile.flush();
+        myfile.close();
+    }
+
+
 
     return 0;
 }
