@@ -13,7 +13,8 @@
 static KDL::JntArray* global_joints_ptr = nullptr; 
 static std::string target_segment = "three_dof_planar_eef";
 static sensor_msgs::JointState joint_states;
-static double GlobalAnimationTime = 0.01;
+static double GlobalAnimationTime = 0.1;
+static bool respect_joint_limits = false;
 
 void joint_states_callback(const sensor_msgs::JointState::ConstPtr& joint_state_msg)
 {
@@ -109,7 +110,7 @@ bool calculate_IK(const KDL::JntArray& joints, const KDL::JntArray& goal, const 
 
     int i = 0;
     double prev_error = 100000.0;
-    double lambda = 0.25;
+    double lambda = 0.5;
     
     while(!converged && (i++ < 100))
     {
@@ -148,15 +149,18 @@ bool calculate_IK(const KDL::JntArray& joints, const KDL::JntArray& goal, const 
         auto joint_offset =  lambda * psuedo_inverse * offset;        
         //auto joint_offset =  lambda * jacobian_result.data.transpose() * offset;        
         guess.data += joint_offset;
-        for(int i = 0; i < 3; i++)
+        if(respect_joint_limits == true)
         {
-            if(guess.data[i] < -1.9)
+            for(int i = 0; i < 3; i++)
             {
-                guess.data[i] = -1.9;   
-            }
-            else if(guess.data[i] > 1.9)
-            {
-                guess.data[i] = 1.9;   
+                if(guess.data[i] < -1.9)
+                {
+                    guess.data[i] = -1.9;   
+                }
+                else if(guess.data[i] > 1.9)
+                {
+                    guess.data[i] = 1.9;   
+                }
             }
         }
 
@@ -223,7 +227,12 @@ int main(int argc, char* argv[])
     node.param("lab3_node/pose_pitch", pose.data[4], 0.0);
     node.param("lab3_node/pose_yaw", pose.data[5], 0.0);
 
-    node.param("lab3_node/anim_time", GlobalAnimationTime, 0.01);
+    node.param("lab3_node/anim_time", GlobalAnimationTime, 0.1);
+
+    int respect_joint_limits_flag = 0;
+    node.param("lab3_node/respect_joint_limits", respect_joint_limits_flag, 0);
+    respect_joint_limits = (respect_joint_limits_flag == 1);
+
 
     ros::Time previous_second = ros::Time::now();
     while(node.ok())
